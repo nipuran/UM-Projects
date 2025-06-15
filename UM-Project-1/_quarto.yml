@@ -1,13 +1,16 @@
-title: "Coffee Shop Sales Analysis Report"
-# subtitle: "Insights from [Start Date] to [End Date]" # Optional: Add a subtitle for context
+title: "Coca-Cola Stock Price Report"
+subtitle: "Project 1" # Optional: Add a subtitle for context
 author: "Nipuran Nirman Sarania"
 date: "June 15, 2025" # Automatically updated if you use 'last-modified' or specify a date
 format:
   pdf:
     execute:
       echo: false
-    documentclass: article          # Good for continuous, less formal reports
-    fontsize: 11pt                  # Standard font size
+      error: true
+      warning: false
+      message: false
+    documentclass: article
+    fontsize: 11pt
     papersize: a4                   # Common paper size
     margin-left: 1in                # Set custom margins for better readability
     margin-right: 1in
@@ -30,4 +33,4 @@ format:
     df-print: kable                 # Uses knitr::kable for better table rendering
     code-block-border-left: "#336699" # Visual cue for code blocks
     code-block-background: "#f8f8f8" # Light background for code blocks
-    output-file: "Coffee_Sales_Report.pdf" # Specify the output PDF file name
+    output-file: "Coca-Cola_Stock_Price_Report.pdf" # Specify the output PDF file name
