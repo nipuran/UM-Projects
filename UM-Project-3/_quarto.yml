@@ -1,0 +1,33 @@
+title: "Colorado Vehicle Sales Analysis Report"
+subtitle: "Project 3" # Optional: Add a subtitle for context
+author: "Nipuran Nirman Sarania"
+date: "July 1, 2025" # Automatically updated if you use 'last-modified' or specify a date
+format:
+  pdf:
+    execute:
+      echo: false
+    documentclass: article          # Good for continuous, less formal reports
+    fontsize: 11pt                  # Standard font size
+    papersize: a4                   # Common paper size
+    margin-left: 1in                # Set custom margins for better readability
+    margin-right: 1in
+    margin-top: 1in
+    margin-bottom: 1in
+    linestretch: 1.2                # Adjust line spacing for readability
+    toc: true                       # Table of Contents
+    toc-depth: 3                    # Up to H3 in ToC
+    number-sections: true           # Number your headings
+    colorlinks: true                # Make links clickable and colored
+    hyperrefoptions:                # Customize hyperlink colors
+      - colorlinks=true
+      - urlcolor=blue
+      - linkcolor=black
+      - citecolor=black
+    mainfont: "JetBrainsMono Nerd Font"                 # Example: Use a specific font (requires LaTeX packages)
+    sansfont: "Terminess Nerd Font"
+    monofont: "Terminess Nerd Font"            # Example: Monospace font for code
+    embed-resources: true           # Embeds fonts and images
+    df-print: kable                 # Uses knitr::kable for better table rendering
+    code-block-border-left: "#336699" # Visual cue for code blocks
+    code-block-background: "#f8f8f8" # Light background for code blocks
+    output-file: "Vehicle_Sales_Report.pdf" # Specify the output PDF file name

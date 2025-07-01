@@ -1,0 +1,549 @@
+---
+jupyter: python3
+---
+
+<h1 style="text-align:center">Vehicle Analysis</h1>
+
+::: {.content-hidden}
+# Library Imports and Style Configuration
+
+```{python}
+import time
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+import matplotlib as mpl
+from matplotlib.ticker import FuncFormatter
+import catppuccin
+plt.style.use(catppuccin.PALETTE.latte.identifier)
+%matplotlib inline
+```
+
+# Data Loading
+
+```{python}
+df = pd.read_csv("colorado_motor_vehicle_sales.csv")
+```
+:::
+
+
+# Data Exploration
+
+```{python}
+df.head()
+```
+
+```{python}
+df.shape
+```
+
+## Sales Summary
+
+```{python}
+import pandas as pd
+import numpy as np
+from scipy.stats import skew, kurtosis
+
+# Convert sales to millions
+sales_million = df['sales'] / 1e6
+
+print("=== Sales Summary (in Million USD) ===")
+print(f"Count          : {sales_million.count():,.0f}")
+print(f"Mean           : {sales_million.mean():,.2f} M USD")
+print(f"Standard Dev   : {sales_million.std():,.2f} M USD")
+print(f"Min            : {sales_million.min():,.2f} M USD")
+print(f"25th Percentile: {sales_million.quantile(0.25):,.2f} M USD")
+print(f"Median         : {sales_million.median():,.2f} M USD")
+print(f"75th Percentile: {sales_million.quantile(0.75):,.2f} M USD")
+print(f"IQR            : {(sales_million.quantile(0.75) - sales_million.quantile(0.25)):.2f} M USD")
+print(f"Max            : {sales_million.max():,.2f} M USD")
+print(f"Skewness       : {skew(sales_million):.2f}")
+print(f"Kurtosis       : {kurtosis(sales_million):.2f}")
+```
+
+::: {.content-hidden}
+**Convert year and quarter into datetime**
+
+```{python}
+df["date"] = pd.to_datetime(
+    df["year"].astype(str) + "-" + (((df["quarter"] - 1) * 3) + 1).astype(str) + "-01"
+)
+```
+:::
+
+# Sales Duration per County
+
+```{python}
+sales_duration_df = pd.DataFrame({
+    "Start Year": df.groupby("county")["year"].min().sort_index(),
+    "End Year": df.groupby("county")["year"].max().sort_index()
+})
+```
+
+```{python}
+sales_duration_df["Duration"] = (sales_duration_df["End Year"] - sales_duration_df["Start Year"]) + 1
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 6))
+
+# Plot bars from start year with width as duration
+for i, (county, row) in enumerate(sales_duration_df.iterrows()):
+    plt.barh(
+        y=county,
+        width=row["Duration"],
+        left=row["Start Year"],
+        height=0.5,
+        color="#4682B4",
+    )
+
+plt.xlabel("Year")
+plt.ylabel("County")
+plt.title("Sales Duration per County", fontsize=14, weight="bold")
+plt.grid(axis="x", linestyle="--", alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+Note: The graph illustrates a change in data categorization. Boulder and Broomfield data were  <br>
+combined as "Boulder/Broomfield" in 2008, then reported as separate entities  <br>
+from 2009 onwards.
+
+# Number of Entries by County
+
+```{python}
+plt.figure(figsize=(10, 5))
+df.groupby("county").size().sort_values().plot(kind="bar")
+plt.title("Number of Entries by County", fontsize=14, weight="bold")
+plt.xlabel("")
+plt.ylabel("Entries", fontsize=12, labelpad=10)
+plt.xticks(rotation=90, fontsize=10)
+plt.yticks(fontsize=10)
+plt.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
+plt.show()
+```
+
+# Box plot of Sales Data
+
+```{python}
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(12, 2.5))
+sns.boxplot(x=df["sales"] / 1e6, color="#3b8bba", linewidth=1.5, fliersize=3)
+
+plt.title("Sales Distribution (in Million USD)", fontsize=14, weight="bold")
+plt.xlabel("Sales (Million USD)", fontsize=12)
+plt.xticks(fontsize=10)
+plt.yticks([])
+plt.grid(axis="x", linestyle="--", alpha=0.7)
+plt.tight_layout()
+plt.show()
+```
+
+Beyond the end of the right whisker, these are outliers, representing sales figures <br>
+that are significantly higher than the vast majority of the other sales data
+
+# County-wise Quarter Sales
+
+```{python}
+s = df["sales"]
+q1 = s.quantile(0.25)
+q2 = s.quantile(0.5)
+q3 = s.quantile(0.75)
+iqr = q3 - q1
+lower_whisker = s[s >= q1 - 1.5 * iqr].min()
+upper_whisker = s[s <= q3 + 1.5 * iqr].max()
+```
+
+```{python}
+# Defensive: Check if 'sales' and 'county' exist
+required_columns = {"county", "sales"}
+if not required_columns.issubset(df.columns):
+    raise ValueError(f"DataFrame must contain columns: {required_columns}")
+
+# Create boolean column for conditional coloring
+df["above_upper_whisker"] = df["sales"] > upper_whisker
+
+# Sort counties by median sales for cleaner x-axis ordering (optional)
+ordered_counties = (
+    df.groupby("county")["sales"].median().sort_values(ascending=False).index
+)
+
+# Strip plot with color highlighting
+plt.figure(figsize=(10, 6))
+ax = sns.stripplot(
+    x="county",
+    y="sales",
+    data=df,
+    hue="above_upper_whisker",
+    order=ordered_counties,
+    jitter=0.25,
+    size=4,
+    dodge=False,
+)
+
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+
+# Plot aesthetics
+plt.title(
+    "County-wise quarter sales with Outliers Highlighted", fontsize=14, weight="bold"
+)
+plt.xlabel("")
+plt.ylabel("Sales", fontsize=12, labelpad=10)
+plt.xticks(rotation=90, fontsize=10)
+plt.yticks(fontsize=10)
+plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
+
+# Adjust legend
+handles, labels = plt.gca().get_legend_handles_labels()
+plt.legend(
+    handles=handles,
+    labels=["≤ Upper Wisker", "> Upper Wisker"],
+    title=f"Sales > {upper_whisker:,.0f}",
+    loc="upper right",
+)
+
+plt.tight_layout()
+plt.show()
+```
+
+# Number of outlier by each county
+
+```{python}
+df[df["above_upper_whisker"]].groupby("county").size()
+```
+
+# Total Sales by County
+
+```{python}
+plt.figure(figsize=(10, 5))
+ax = df.groupby("county")["sales"].sum().sort_values().plot(kind="bar")
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+plt.title("Total Sales by County", fontsize=14, weight="bold")
+plt.xlabel("")
+plt.ylabel("Sales", fontsize=12, labelpad=10)
+plt.xticks(rotation=90, fontsize=10)
+plt.yticks(fontsize=10)
+plt.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
+plt.show()
+```
+
+# Quarterly Sales by Year
+
+```{python}
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Clean column names if needed
+df.columns = df.columns.str.strip()
+
+# Step 1: Group by year and quarter, and sum the sales
+quarterly_sales = df.groupby(["year", "quarter"])["sales"].sum().reset_index()
+
+# Step 2: Pivot for plotting (years as index, quarters as columns)
+pivot_table = quarterly_sales.pivot(index="year", columns="quarter", values="sales")
+
+# Step 3: Plot
+ax = pivot_table.plot(kind="bar", figsize=(12, 6))
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+
+# Optional Formatting
+plt.title("Quarterly Sales by Year", fontsize=16, weight="bold")
+plt.xlabel("Year", fontsize=12)
+plt.ylabel("Sales (USD)", fontsize=12)
+plt.legend(title="Quarter")
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.tight_layout()
+plt.show()
+```
+
+# Quarterly Sales by County
+
+```{python}
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+quarterly_sales = df.groupby(["county", "year", "quarter"])["sales"].sum().reset_index()
+
+plt.figure(figsize=(14, 6))
+ax = sns.barplot(
+    data=quarterly_sales,
+    x="quarter",
+    y="sales",
+    hue="county",
+    errorbar=None,
+    edgecolor="black",
+)
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+plt.title("Quarterly Sales by County")
+plt.ylabel("Sales")
+plt.xlabel("Quarter")
+plt.legend(title="County")
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.tight_layout()
+plt.show()
+```
+
+# Yearly Sales by County
+
+```{python}
+yearly_sales = df.groupby(["county", "year"])["sales"].sum().reset_index()
+
+plt.figure(figsize=(14, 6))
+ax = sns.barplot(
+    data=yearly_sales,
+    x="year",
+    y="sales",
+    hue="county",
+    errorbar=None,
+    edgecolor="black",
+)
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+plt.title("Yearly Sales by County")
+plt.ylabel("Sales")
+plt.xlabel("Year")
+plt.legend(title="County")
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.tight_layout()
+plt.show()
+```
+
+# Quarterly Sales for Top 5 Counties
+
+```{python}
+top5_counties = (
+    df.groupby("county")["sales"].max().sort_values(ascending=False).head(5).index
+)
+```
+
+```{python}
+df_top5 = df[df["county"].isin(top5_counties)].copy()
+df_top5["year_quarter"] = df_top5["year"].astype(str) + "-Q" + df_top5["quarter"].astype(str)
+```
+
+```{python}
+grouped = df_top5.groupby(["year_quarter", "county"])["sales"].sum().reset_index()
+
+plt.figure(figsize=(16, 6))
+ax = sns.barplot(
+    data=grouped,
+    x="year_quarter",
+    y="sales",
+    hue="county",
+    errorbar=None,
+    edgecolor="black",
+)
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+plt.title("Quarterly Sales for Top 5 Counties", fontsize=14, weight="bold")
+plt.xlabel("")
+plt.ylabel("Sales (USD)", labelpad=10)
+plt.xticks(rotation=90)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.legend(title="County", bbox_to_anchor=(1.05, 1), loc="upper left")
+plt.tight_layout()
+plt.show()
+```
+
+# Quarterly Sales Trend
+
+```{python}
+# Set datetime index and aggregate quarterly sales
+quarterly_sales = df.set_index("date").resample("QS")["sales"].sum()
+
+# Plot configuration
+fig, ax = plt.subplots(figsize=(12, 6))
+quarterly_sales.plot(ax=ax, color="#2a6ebb", linewidth=2, marker="o")
+
+# Format Y-axis to millions
+ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1e6:,.2f}M"))
+
+# Improve X-axis formatting
+ax.set_xlabel("")  # No redundant label
+ax.set_ylabel("Sales (Million USD)", fontsize=12, weight="bold")
+ax.set_title("Quarterly Sales Trend", fontsize=14, weight="bold")
+ax.grid(axis="x", linestyle="--", alpha=0.7)
+ax.tick_params(axis="x", rotation=90)
+
+plt.tight_layout()
+plt.show()
+```
+
+# Variance and Standard Deviation Over Time
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+
+rolling_window = 12
+
+rolling_std = quarterly_sales.rolling(window=rolling_window).std()
+rolling_var = quarterly_sales.rolling(window=rolling_window).var()
+
+plt.figure(figsize=(12, 5))
+plt.plot(rolling_std, label='Rolling Std Dev')
+plt.plot(rolling_var, label='Rolling Variance', linestyle='--')
+plt.title('Rolling Variance and Std Dev')
+plt.legend()
+plt.grid(True)
+plt.show()
+```
+
+# Seasonal Decomposition
+
+```{python}
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+decomp = seasonal_decompose(quarterly_sales, model='multiplicative', period=12)
+fig = decomp.plot()
+fig.set_size_inches(10, 8)
+plt.tight_layout()
+plt.show()
+```
+
+# ML Model
+
+```{python}
+train_size = int(len(quarterly_sales) * 0.80)
+
+train_sales = quarterly_sales.iloc[:train_size]
+test_sales  = quarterly_sales.iloc[train_size:]
+
+print("Train shape:", train_sales.shape)
+print("Test shape: ", test_sales.shape)
+```
+
+```{python}
+import warnings
+
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+warnings.filterwarnings("ignore")
+model = SARIMAX(train_sales, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+results = model.fit(disp=False)
+
+print("Model Summary")
+print(results.summary().tables[1])
+```
+
+::: {.content-hidden}
+```{python}
+forecast = results.get_forecast(steps=len(test_sales))
+pred = forecast.predicted_mean
+conf_df = forecast.conf_int()
+
+pd.concat(
+    [
+        pred.rename("Forecast"),
+        conf_df.iloc[:, 0].rename("Lower CI"),
+        conf_df.iloc[:, 1].rename("Upper CI"),
+    ],
+    axis=1,
+).head()
+```
+:::
+
+# Forecast vs Actual
+
+```{python}
+plt.figure(figsize=(10, 4))
+train_sales.plot(label="Train")
+test_sales.plot(label="Test")
+pred.plot(label="Forecast")
+plt.fill_between(
+    test_sales.index,
+    conf_df.iloc[:, 0].astype(float),
+    conf_df.iloc[:, 1].astype(float),
+    alpha=0.2,
+)
+plt.legend()
+plt.title("Forecast vs. Actual (Monthly)")
+plt.tight_layout()
+# plt.savefig("images/Montly Sales Forecast.png")
+plt.show()
+```
+
+# Forecast Accuracy Metrics
+
+```{python}
+# Compute Accuracy Metrics
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+mae = mean_absolute_error(test_sales, pred)
+rmse = np.sqrt(mean_squared_error(test_sales, pred))
+mape = np.mean(np.abs((test_sales - pred) / test_sales)) * 100
+
+metrics = pd.DataFrame({"MAE": [mae], "RMSE": [rmse], "MAPE": [mape]})
+metrics
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+# Bar Chart of Accuracy Metrics with Labels
+plt.figure(figsize=(6, 6))
+ax = metrics.iloc[0].plot(kind="bar")
+
+plt.title("Forecast Accuracy Metrics", pad=20)
+plt.ylabel("Value")
+
+# Add value labels on top of each bar
+for container in ax.containers:
+    ax.bar_label(container, fmt="%.2f", padding=3)
+
+plt.tight_layout()
+plt.show()
+```
+
+# Forecast Accuracy by Model
+
+```{python}
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# Define & fit models (no disp arg)
+models = {
+    "AR(1)": ARIMA(train_sales, order=(1, 0, 0)).fit(),
+    "MA(1)": ARIMA(train_sales, order=(0, 0, 1)).fit(),
+    "ARMA(1,1)": ARIMA(train_sales, order=(1, 0, 1)).fit(),
+    "ARIMA(1,1,1)": ARIMA(train_sales, order=(1, 1, 1)).fit(),
+    "SARIMA(1,1,1)x(1,1,1,12)": SARIMAX(
+        train_sales, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)
+    ).fit(),
+}
+
+# Forecast with each
+results = {}
+for name, fitted in models.items():
+    if "SARIMA" in name:
+        pred = fitted.get_forecast(steps=len(test_sales)).predicted_mean
+    else:
+        pred = fitted.forecast(steps=len(test_sales))
+        pred.index = test_sales.index  # align index
+    results[name] = pred
+
+# Compute accuracy metrics
+metrics = []
+for name, pred in results.items():
+    mae = mean_absolute_error(test_sales, pred)
+    rmse = np.sqrt(mean_squared_error(test_sales, pred))
+    mape = np.mean(np.abs((test_sales - pred) / test_sales)) * 100
+    metrics.append({"Model": name, "MAE": mae, "RMSE": rmse, "MAPE": mape})
+
+metrics_df = pd.DataFrame(metrics).set_index("Model")
+# Visual comparison
+metrics_df.plot(kind="bar", figsize=(8, 5), title="Forecast Accuracy by Model")
+plt.ylabel("Error")
+plt.xticks(rotation=90, ha="right")
+plt.tight_layout()
+plt.show()
+print()
+print(metrics_df)
+print()
+```
+
+
