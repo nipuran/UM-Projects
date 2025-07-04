@@ -1,0 +1,16 @@
+name: venv
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - jupyterlab
+  - catppuccin-jupyterlab
+  - matplotlib
+  - pandas
+  - numpy
+  - scikit-learn
+  - jupyter-ruff
+  - seaborn
+  - prophet
+  - plotly
+prefix: /home/nipuran/miniforge3/envs/venv
